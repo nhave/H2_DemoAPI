@@ -1,0 +1,68 @@
+﻿@page "/getall"
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using System.Text.Json.Nodes;
+@using System.Globalization;
+@using ProjectLibrary.Models
+@inject IHttpClientFactory ClientFactory
+@inject IConfiguration Configuration
+
+<PageTitle>GetAll</PageTitle>
+
+<div class="card">
+	<h1 class="card-header">GetAll</h1>
+	<div class="card-body">
+        <p>@url</p>
+        @if (_users != null && _users.Count() > 0)
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">First Name</th>
+                        <th scope="col">Last Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Username</th>
+                        <th scope="col">Date Registered</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (Users user in _users)
+                    {
+                        <tr>
+                            <th scope="row">@user.Id</th>
+                            <td>@user.FirstName</td>
+                            <td>@user.LastName</td>
+                            <td>@user.Email</td>
+                            <td>@user.Username</td>
+                            <td>@user.CreatedAt.ToShortDateString()</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private IEnumerable<Users>? _users;
+    private string? url;
+
+    protected override async Task OnInitializedAsync()
+    {
+        url = Configuration.GetValue<string>("API:Url") + "/api/users/getall";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        var client = ClientFactory.CreateClient();
+
+        var response = await client.SendAsync(request);
+
+        if (response.IsSuccessStatusCode)
+        {
+            using var responseStream = await response.Content.ReadAsStreamAsync();
+
+            _users = await JsonSerializer.DeserializeAsync<IEnumerable<Users>>(responseStream);
+        }
+    }
+}
