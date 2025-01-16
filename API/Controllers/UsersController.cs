@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProjectLibrary.Models;
+using ProjectLibrary.DTO;
 
 namespace API.Controllers
 {
@@ -15,6 +16,22 @@ namespace API.Controllers
         {
             _context = context;
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            var totalCount = await _context.Users.CountAsync();
+            var users = await _context.Users.Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            
+            var result = new PagedResult<Users>
+            {
+                Items = users, TotalCount = totalCount
+            };
+            return Ok(result);
+        }
+
 
         [HttpGet("GetAll")]
         public async Task<ActionResult<IEnumerable<Users>>> GetUsers()

@@ -1,0 +1,198 @@
+﻿@page "/users"
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using System.Text.Json.Nodes;
+@using System.Globalization;
+@using ProjectLibrary.Models;
+@using ProjectLibrary.DTO;
+@using BlazorDemo.Services;
+@inject IHttpClientFactory ClientFactory
+@inject IConfiguration Configuration
+
+@inject Requests Requests
+
+<PageTitle>Users</PageTitle>
+
+<div class="card mb-3">
+    <h1 class="card-header">Users</h1>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">First Name</th>
+                    <th scope="col">Last Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Username</th>
+                    <th scope="col">Date Registered</th>
+                    <th scope="col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (users != null && users.Count() > 0)
+                {
+                    @foreach (Users user in users)
+                    {
+                        <tr>
+                            <th scope="row">@user.Id</th>
+                            <td>@user.FirstName</td>
+                            <td>@user.LastName</td>
+                            <td>@user.Email</td>
+                            <td>@user.Username</td>
+                            <td>@user.CreatedAt.ToShortDateString()</td>
+                            <td style="width: 0;">
+                                <div class="d-flex">
+                                    <Button Color="ButtonColor.None" Class="text-hover-blue" @onclick="() => {OnShowModalEdit(user);}"><Icon Name="IconName.PencilFill" /></Button>
+                                    <Button Color="ButtonColor.None" Class="text-hover-red" @onclick="() => {ShowDeleteModal(user);}"><Icon Name="IconName.Trash3Fill" /></Button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+        <div class="row row-cols-2 justify-content-between">
+            <div class="col-auto">
+                <Pagination ActivePageNumber="currentPageNumber"
+                    TotalPages="totalPages"
+                    DisplayPages="Math.Min(totalPages, 5)"
+                    FirstLinkIcon="IconName.ChevronDoubleLeft"
+                    PreviousLinkIcon="IconName.ChevronLeft"
+                    NextLinkIcon="IconName.ChevronRight"
+                    LastLinkIcon="IconName.ChevronDoubleRight"
+                    PageChanged="OnPageChangedAsync"
+                    Class="mb-0"/>
+            </div>
+            <div class="col-auto">
+                <Button Color="ButtonColor.Primary" @onclick="OnShowModalAdd">Add new user</Button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<EditForm FormName="AddUser" Model="this" OnSubmit="AddUser" id="dddUserForm" Context="formContext">
+    <Modal @ref="modalAdd" title="@(edit ? $"Edit User: {newUser.Username}" : "Add User")" IsVerticallyCentered="true">
+        <BodyTemplate>
+            <div class="mb-3">
+                <label for="inputFirstName" class="form-label">First name</label>
+                <input type="text" class="form-control" id="inputFirstName" @bind-value="newUser.FirstName">
+            </div>
+            <div class="mb-3">
+                <label for="inputLastName" class="form-label">Last name</label>
+                <input type="text" class="form-control" id="inputLastName" @bind-value="newUser.LastName">
+            </div>
+            <div class="mb-3">
+                <label for="inputEmail" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="inputEmail" @bind-value="newUser.Email">
+            </div>
+            <div class="mb-3">
+                <label for="inputUsername" class="form-label">Username</label>
+                <input type="text" class="form-control" id="inputUsername" @bind-value="newUser.Username">
+            </div>
+            <div class="mb-3">
+                <label for="inputPassword" class="form-label">Password</label>
+                <input type="password" class="form-control" id="inputPassword" @bind-value="newUser.Password">
+            </div>
+        </BodyTemplate>
+        <FooterTemplate>
+            <Button Color="ButtonColor.Secondary" @onclick="OnHideModalClick">Close</Button>
+            <Button Type="ButtonType.Submit" Color="ButtonColor.Primary">@(edit ? "Save Changes" : "Add User")</Button>
+        </FooterTemplate>
+    </Modal>
+</EditForm>
+
+<Modal @ref="modalDelete" title="@($"Delete User: {newUser.Username}")" IsVerticallyCentered="true">
+    <BodyTemplate>
+        Delete
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="HideDeleteModal">Close</Button>
+        <Button Color="ButtonColor.Danger" @onclick="DeleteUser">Delete User</Button>
+    </FooterTemplate>
+</Modal>
+
+@code {
+    private IEnumerable<Users>? users;
+    private int totalPages = 1;
+    private int currentPageNumber = 1;
+    private int usersPerPage = 5;
+    private Users newUser = new();
+    private bool edit = false;
+
+    private Modal modalAdd = default!;
+    private Modal modalDelete = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UpdateUserTable();
+    }
+
+    private async Task UpdateUserTable()
+    {
+        var pagedResult = await Requests.FetchUsers(currentPageNumber, usersPerPage);
+        if (pagedResult != null && pagedResult.TotalCount > 0)
+        {
+            totalPages = (int)Math.Ceiling((double)pagedResult.TotalCount / usersPerPage);
+            users = pagedResult.Items;
+        }
+    }
+
+    private async Task OnPageChangedAsync(int newPageNumber)
+    {
+        currentPageNumber = newPageNumber;
+        await UpdateUserTable();
+    }
+
+    private async Task AddUser()
+    {
+        var response = await (edit ? Requests.PutUser(newUser) : Requests.AddUser(newUser));
+        if (response.IsSuccessStatusCode)
+        {
+            await UpdateUserTable();
+            await modalAdd.HideAsync();
+        }
+    }
+
+    private async Task OnShowModalAdd()
+    {
+        newUser = new();
+        edit = false;
+        await modalAdd.ShowAsync();
+    }
+
+    private async Task OnShowModalEdit(Users user)
+    {
+        newUser = user.Copy();
+        newUser.Password = "";
+        edit = true;
+        await modalAdd.ShowAsync();
+    }
+
+    private async Task OnHideModalClick()
+    {
+        await modalAdd.HideAsync();
+    }
+
+    private async Task ShowDeleteModal(Users user)
+    {
+        newUser = user.Copy();
+        await modalDelete.ShowAsync();
+    }
+
+    private async Task HideDeleteModal()
+    {
+        await modalDelete.HideAsync();
+    }
+
+    private async Task DeleteUser()
+    {
+        var response = await Requests.DeleteUser(newUser);
+        if (response.IsSuccessStatusCode)
+        {
+            await UpdateUserTable();
+            await modalDelete.HideAsync();
+        }
+    }
+}

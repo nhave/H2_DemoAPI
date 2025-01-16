@@ -1,4 +1,5 @@
 using BlazorDemo.Components;
+using BlazorDemo.Services;
 using System.Reflection;
 
 namespace BlazorDemo
@@ -9,17 +10,18 @@ namespace BlazorDemo
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add User Secrets.
-            //builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
-
-            //var url = builder.Configuration.GetValue<string>("API:Url");
+            var url = builder.Configuration.GetValue<string>("API:Url");
             //Console.WriteLine($"API URL: {url}");
 
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+            builder.Services.AddBlazorBootstrap();
+
             builder.Services.AddHttpClient();
+
+            builder.Services.AddSingleton<Requests>();
 
             var app = builder.Build();
 

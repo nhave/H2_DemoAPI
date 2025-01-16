@@ -29,5 +29,10 @@ namespace ProjectLibrary.Models
 
         [JsonPropertyName("createdAt")]
         public DateTime CreatedAt { get; set; }
+
+        public Users Copy()
+        {
+            return (Users)this.MemberwiseClone();
+        }
     }
 }
